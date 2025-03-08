@@ -1,0 +1,29 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "SternPlot"
+version = "2025.03.2"
+description = "Plotting library for hstern.ca. Built on plotly"
+authors = [
+    { name = "Henry Stern" },
+]
+license = { file = "LICENSE"}
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License"
+]
+requires-python = "~=3.13"
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+select = [ "E4", "E7", "E9", "F", "W", "C901", "N", "A", "PD", "D100", "D101", "D102", "D103", "D104", "D105" ]
+ignore = ["PD901"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["SternPlot"]
+force-sort-within-sections = true
