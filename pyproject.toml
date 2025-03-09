@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "SternPlot"
-version = "2025.03.2"
+version = "2025.3"
 description = "Plotting library for hstern.ca. Built on plotly"
 authors = [
     { name = "Henry Stern" },
@@ -16,6 +16,10 @@ classifiers = [
     "License :: OSI Approved :: MIT License"
 ]
 requires-python = "~=3.13"
+dependencies = [
+    "plotly",
+    "pillow",
+]
 
 [tool.ruff]
 line-length = 79
