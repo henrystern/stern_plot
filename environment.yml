@@ -1,4 +1,4 @@
-name: SternPlot
+name: stern_plot
 channels:
   - conda-forge
 dependencies:
