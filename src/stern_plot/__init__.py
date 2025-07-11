@@ -1,3 +1,3 @@
 """Define themes for plotly plots."""
 
-import stern_plot.theme  # noqa: F401
+from . import adjust, plot_io, theme

@@ -29,6 +29,9 @@ line-length = 79
 select = [ "E4", "E7", "E9", "F", "W", "C901", "N", "A", "PD", "D100", "D101", "D102", "D103", "D104", "D105" ]
 ignore = ["PD901"]
 
+[tool.ruff.lint.extend-per-file-ignores]
+"__init__.py" = ["D104", "F401"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["stern_plot"]
 force-sort-within-sections = true
