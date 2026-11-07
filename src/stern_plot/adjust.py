@@ -4,7 +4,7 @@ import stern_plot.theme as theme
 
 
 def add_plot_notes(fig, note, x=0, y="auto"):
-    """Add note to bottome left of figure."""
+    """Add note to bottom left of figure."""
     if isinstance(note, list):
         note = "<br>".join(note)
     if y == "auto":
@@ -19,7 +19,7 @@ def add_plot_notes(fig, note, x=0, y="auto"):
             yref="y domain",
             text=note,
             showarrow=False,
-            font=dict(size=12, color=text_colour),
+            font=dict(color=text_colour),  # inherit size
             align="left",
         )
     )

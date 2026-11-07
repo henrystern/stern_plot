@@ -7,14 +7,14 @@ import plotly.io as pio
 from stern_plot.config import FAVICON_PATH
 
 
-def set_plot_template(colour, palette):
+def set_plot_template(colour, palette, add_logo=True):
     """Set the plot layout template for plotly"""
     font = "Muli, 'Open Sans', Verdana, Arial, sans-serif"
     custom_template = go.layout.Template(
         layout=dict(
             plot_bgcolor=colour["background"],
             paper_bgcolor=colour["background"],
-            font=dict(color=colour["foreground"], family=font),
+            font=dict(color=colour["foreground"], family=font, size=12),
             title=dict(
                 x=0.08,
                 xanchor="left",
@@ -58,8 +58,24 @@ def set_plot_template(colour, palette):
                     xanchor="right",
                     yanchor="top",
                 )
-            ],
+            ]
+            if add_logo
+            else None,
         ),
+    )
+    return custom_template
+
+
+def set_plot_scaling(scale: float = 1, width=800, height=511):
+    """Create a plotly template to scale text to a context."""
+    custom_template = go.layout.Template(
+        layout=dict(
+            font=dict(size=scale * 12),
+            title=dict(font=dict(size=scale * 20)),
+            legend=dict(font=dict(size=scale * 14)),
+            width=width,
+            height=height,
+        )
     )
     return custom_template
 
@@ -88,6 +104,19 @@ site_colour = {
     "light_pink": "#eeccff",
     "lighter_pink": "#e1c1f2",
 }
+dracula = {
+    "Background": "#282A36",
+    "Foreground": "#F8F8F2",
+    "Selection": "#44475A",
+    "Comment": "#6272A4",
+    "Red": "#FF5555",
+    "Orange": "#FFB86C",
+    "Yellow": "#F1FA8C",
+    "Green": "#50FA7B",
+    "Purple": "#BD93F9",
+    "Cyan": "#8BE9FD",
+    "Pink": "#FF79C6",
+}
 
 light_theme = {
     "background": site_colour["light_pink"],
@@ -100,6 +129,12 @@ dark_theme = {
     "foreground": site_colour["light_grey"],
     "title": site_colour["light_pink"],
     "gridlines": site_colour["dark_grey"],
+}
+dracula_theme = {
+    "background": dracula["Background"],
+    "foreground": dracula["Foreground"],
+    "title": dracula["Foreground"],
+    "gridlines": dracula["Selection"],
 }
 
 
@@ -115,7 +150,23 @@ dark_palette = [
     "#8bd3c7",
 ]
 light_palette = dark_palette  # TODO define light_palette
+dracula_palette = [
+    dracula["Comment"],
+    dracula["Red"],
+    dracula["Orange"],
+    dracula["Yellow"],
+    dracula["Green"],
+    dracula["Purple"],
+    dracula["Cyan"],
+    dracula["Pink"],
+]
 
 
 pio.templates["hstern_dark"] = set_plot_template(dark_theme, dark_palette)
 pio.templates["hstern_light"] = set_plot_template(light_theme, light_palette)
+pio.templates["dracula"] = set_plot_template(
+    dracula_theme, dracula_palette, add_logo=False
+)
+
+# Scales
+pio.templates["revealjs"] = set_plot_scaling(1.25, 940, 600)
