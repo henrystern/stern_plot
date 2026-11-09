@@ -3,18 +3,14 @@
 
 from typing import Literal
 
+import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
 
-from sternplot.adjust import add_notes
-from sternplot.config import theme_colours, theme_scales
-from sternplot.theme import (
-    get_config_options,
-    set_plot_scaling,
-    set_plot_template,
-)
-
-from . import adjust, plot_io, theme
+from .adjust import add_notes
+from .config import theme_colours, theme_scales
+from .plot_io import show, write_all
+from .theme import set_plot_scaling, set_plot_template
 
 type NewTemplate = Literal[
     "hstern_dark", "hstern_light", "dracula", "revealjs"
@@ -30,3 +26,12 @@ for theme_name, scale in theme_scales.items():
 def set_as_default(template: NewTemplate = "hstern_dark"):
     """Set one of the newly created templates as the default for all plotly figures."""
     pio.templates.default = template
+
+
+# Monkey-patch go.Figure to support .pipe()
+if not hasattr(go.Figure, "pipe"):
+    setattr(
+        go.Figure,
+        "pipe",
+        lambda self, func, *args, **kwargs: func(self, *args, **kwargs),
+    )
