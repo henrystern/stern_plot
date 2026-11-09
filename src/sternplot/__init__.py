@@ -13,7 +13,7 @@ from .plot_io import show, write_all
 from .theme import set_plot_scaling, set_plot_template
 
 type NewTemplate = Literal[
-    "hstern_dark", "hstern_light", "dracula", "revealjs"
+    "hstern_dark", "hstern_light", "dracula", "economist", "revealjs"
 ]
 
 for theme_name, colours in theme_colours.items():

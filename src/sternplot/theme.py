@@ -1,6 +1,6 @@
 """Set the default layout and output configuration for plotly plots."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
 from typing import Annotated, List
@@ -26,7 +26,13 @@ class ThemeColourSpec:
     logo: Annotated[
         Path | BytesIO | None,
         "The path to a logo image, or none to skip adding the logo.",
-    ]
+    ] = None
+    xaxis_kwargs: Annotated[dict, "The dictionary of xaxis options."] = field(
+        default_factory=dict
+    )
+    yaxis_kwargs: Annotated[dict, "The dictionary of yaxis options."] = field(
+        default_factory=dict
+    )
 
 
 @dataclass(frozen=True)
@@ -42,14 +48,8 @@ def set_plot_template(spec: ThemeColourSpec):
     """Set the plot layout template for plotly"""
     font = "Muli, 'Open Sans', Verdana, Arial, sans-serif"
     axis_kwargs = dict(
-        # automargin=False,
-        # Outside gridlines
         showline=True,
-        # mirror=True,
-        # linecolor=spec.gridlines,
         linecolor=spec.foreground,
-        # Inside gridlines
-        # showgrid=True,
         gridcolor=spec.gridlines,
         linewidth=2,
     )
@@ -68,8 +68,8 @@ def set_plot_template(spec: ThemeColourSpec):
                 yanchor="top",
                 font=dict(color=spec.title, size=25),
             ),
-            yaxis=dict(**axis_kwargs),
-            xaxis=dict(**axis_kwargs),
+            yaxis=dict(axis_kwargs | spec.yaxis_kwargs),
+            xaxis=dict(axis_kwargs | spec.xaxis_kwargs),
             legend=dict(
                 font=dict(size=14),
                 # bgcolor="rgb(0, 0, 0, 1)",  # Transparent background
@@ -84,8 +84,8 @@ def set_plot_template(spec: ThemeColourSpec):
                     yref="paper",
                     x=0.99,
                     y=-0.08,
-                    sizex=0.11,
-                    sizey=0.11,
+                    sizex=0.08,
+                    sizey=0.08,
                     xanchor="right",
                     yanchor="top",
                 )

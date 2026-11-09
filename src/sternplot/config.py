@@ -39,15 +39,14 @@ dracula = {
 
 
 dark_palette = [
-    "#fd7f6f",
-    "#7eb0d5",
-    "#b2e061",
-    "#bd7ebe",
-    "#ffb55a",
-    "#ffee65",
-    "#beb9db",
-    "#fdcce5",
-    "#8bd3c7",
+    "#FF2E17",
+    "#FFAA90",
+    "#5BA3D8",
+    "#123FA1",
+    "#F1FA8C",
+    "#FF79C6",
+    "#B0B1B3",
+    "#65666B",
 ]
 light_palette = dark_palette  # TODO define light_palette
 dracula_palette = [
@@ -87,7 +86,23 @@ theme_colours = {
         gridlines=dracula["Selection"],
         shade="#313037",
         palette=dracula_palette,
-        logo=None,
+    ),
+    "economist": ThemeColourSpec(
+        background="#F1EEE5",
+        foreground="#2C2E35",
+        title="#2C2E35",
+        gridlines="#CECFD1",
+        shade="#FFD4C5",
+        palette=[
+            "#FF2E17",
+            "#FFAA90",
+            "#5BA3D8",
+            "#123FA1",
+            "#B0B1B3",
+            "#65666B",
+        ],
+        xaxis_kwargs=dict(showgrid=False, ticks="outside"),
+        yaxis_kwargs=dict(showline=False, ticklabelposition="inside top"),
     ),
 }
 
