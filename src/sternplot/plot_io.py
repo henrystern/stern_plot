@@ -4,7 +4,7 @@ from pathlib import Path
 
 from plotly.graph_objects import Figure
 
-import stern_plot.theme as theme
+import sternplot.theme as theme
 
 
 def show(fig, key):

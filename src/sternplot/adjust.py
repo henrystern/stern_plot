@@ -1,6 +1,6 @@
 """Functions for modifying plot layouts."""
 
-import stern_plot.theme as theme
+import sternplot.theme as theme
 
 
 def add_plot_notes(fig, note, x=0, y="auto"):

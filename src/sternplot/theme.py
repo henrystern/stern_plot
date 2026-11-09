@@ -4,7 +4,7 @@ from PIL import Image
 import plotly.graph_objects as go
 import plotly.io as pio
 
-from stern_plot.config import FAVICON_PATH
+from sternplot.config import FAVICON_PATH
 
 
 def set_plot_template(colour, palette, add_logo=True):
