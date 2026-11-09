@@ -18,7 +18,7 @@ classifiers = [
 requires-python = "~=3.14, <4"
 dependencies = [
     "pillow>=11.3.0",
-    "plotly>=6.2.0",
+    "plotly[express]>=6.2.0",
     "requests>=2.32.4",
 ]
 
