@@ -11,6 +11,7 @@ from .adjust import add_notes
 from .config import theme_colours, theme_scales
 from .plot_io import show, write_all
 from .theme import set_plot_scaling, set_plot_template
+from .touchup import touchup
 
 type NewTemplate = Literal[
     "hstern_dark", "hstern_light", "dracula", "economist", "revealjs"
