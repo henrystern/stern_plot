@@ -57,6 +57,7 @@ def set_plot_template(spec: ThemeColourSpec):
         layout=dict(
             # NOTE Don't bother making responsive, text doesn't scale and looks worse than rescaling png.
             # If you need it to be responsive add a link to a related plot with no annotations.
+            autosize=False,
             width=800,
             height=511,
             plot_bgcolor=spec.background,
