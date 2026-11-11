@@ -1055,17 +1055,9 @@
     const LS = { get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d } catch (e) { return d } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch (e) { } } };
     const PALS = [
       ['Plotly', '#636EFA #EF553B #00CC96 #AB63FA #FFA15A #19D3F3 #FF6692 #B6E880 #FF97FF #FECB52'],
-      ['Studio', '#90BCF5 #FF9E52 #7DD3A8 #C792EA #F7768E #E0AF68 #73DACA #BB9AF7'],
-      ['D3', '#1F77B4 #FF7F0E #2CA02C #D62728 #9467BD #8C564B #E377C2 #7F7F7F #BCBD22 #17BECF'],
-      ['T10', '#4C78A8 #F58518 #E45756 #72B7B2 #54A24B #EECA3B #B279A2 #FF9DA6 #9D755D #BAB0AC'],
-      ['G10', '#3366CC #DC3912 #FF9900 #109618 #990099 #0099C6 #DD4477 #66AA00 #B82E2E #316395'],
-      ['Set1', '#E41A1C #377EB8 #4DAF4A #984EA3 #FF7F00 #FFFF33 #A65628 #F781BF #999999'],
-      ['Dark2', '#1B9E77 #D95F02 #7570B3 #E7298A #66A61E #E6AB02 #A6761D #666666'],
-      ['Pastel', '#FBB4AE #B3CDE3 #CCEBC5 #DECBE4 #FED9A6 #FFFFCC #E5D8BD #FDDAEC #F2F2F2'],
-      ['Okabe-Ito (colour-blind safe)', '#000000 #E69F00 #56B4E9 #009E73 #F0E442 #0072B2 #D55E00 #CC79A7'],
-      ['Tol Muted (colour-blind safe)', '#88CCEE #CC6677 #DDCC77 #117733 #332288 #AA4499 #44AA99 #999933 #882255'],
-      ['Viridis', '#440154 #46337E #365C8D #277F8E #1FA187 #4AC16D #9FDA3A #FDE725'],
-      ['Magma', '#000004 #231151 #5F187F #982D80 #D3436E #F8765C #FEBA80 #FCFDBF']
+      ['Hstern', '#1f3023 #003601 #394148 #a0a0a0 #eeccff #e1c1f2 #FF2E17 #FFAA90 #5BA3D8 #123FA1 #F1FA8C #FF79C6 #B0B1B3 #65666B'],
+      ['Dracula', '#282A36 #F8F8F2 #44475A #6272A4 #FF5555 #FFB86C #F1FA8C #50FA7B #BD93F9 #8BE9FD #FF79C6'],
+      ['Economist', '#F1EEE5 #2C2E35 #2C2E35 #CECFD1 #FFD4C5 #FF2E17 #FFAA90 #5BA3D8 #123FA1 #B0B1B3 #65666B']
     ].map(([n, c]) => [n, c.split(' ')]);
     const NEU = ['#ffffff', '#e6e6e6', '#b3b3b3', '#808080', '#4d4d4d', '#1a1a1a', '#000000'];
     S.custom = LS.get('studio-custom-pals', []); S.pal = LS.get('studio-pal', 'Plotly'); S.recent = LS.get('studio-recent', []); S.edit = null;
