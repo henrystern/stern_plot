@@ -966,6 +966,106 @@
       border-color: #d1495b;
       color: #ff7b8a
     }
+
+    /* image overlay */
+    #wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 420px
+    }
+
+    #wrap #gd {
+      height: 100%
+    }
+
+    #imgLayer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 0;
+      height: 0;
+      overflow: visible;
+      z-index: 5
+    }
+
+    .ib {
+      position: absolute;
+      cursor: move;
+      outline: 1px dashed transparent;
+      touch-action: none
+    }
+
+    .ib:hover {
+      outline-color: rgba(255, 158, 82, .7)
+    }
+
+    .ib.sel {
+      outline: 2px solid var(--acc)
+    }
+
+    .hd {
+      display: none;
+      position: absolute;
+      width: 11px;
+      height: 11px;
+      margin: -5.5px 0 0 -5.5px;
+      background: var(--bg);
+      border: 2px solid var(--acc);
+      border-radius: 3px
+    }
+
+    .ib.sel .hd {
+      display: block
+    }
+
+    .h-nw {
+      left: 0;
+      top: 0;
+      cursor: nwse-resize
+    }
+
+    .h-n {
+      left: 50%;
+      top: 0;
+      cursor: ns-resize
+    }
+
+    .h-ne {
+      left: 100%;
+      top: 0;
+      cursor: nesw-resize
+    }
+
+    .h-e {
+      left: 100%;
+      top: 50%;
+      cursor: ew-resize
+    }
+
+    .h-se {
+      left: 100%;
+      top: 100%;
+      cursor: nwse-resize
+    }
+
+    .h-s {
+      left: 50%;
+      top: 100%;
+      cursor: ns-resize
+    }
+
+    .h-sw {
+      left: 0;
+      top: 100%;
+      cursor: nesw-resize
+    }
+
+    .h-w {
+      left: 0;
+      top: 50%;
+      cursor: ew-resize
+    }
   </style>
 </head>
 
@@ -995,7 +1095,10 @@
   </header>
   <main>
     <section id="stage">
-      <div id="gd"></div>
+      <div id="wrap">
+        <div id="gd"></div>
+        <div id="imgLayer"></div>
+      </div>
       <div id="empty">
         <h2>Drop a Plotly figure here</h2>
         <div>Export one from Python with <code>fig.write_json("figure.json")</code>, then drop the file, paste its JSON,
@@ -1014,9 +1117,11 @@
         <div id="traces"></div>
       </div>
       <div class="pane" id="p-elems">
-        <div class="row"><button id="addAnn2" class="primary">Add annotation</button></div>
-        <p class="hint">Select annotations and shapes from the list or by clicking them in the figure. Ctrl/Cmd-click
-          adds or removes one, Shift-click selects a range, and edits apply to everything selected. Draw shapes with the
+        <div class="row"><button id="addAnn2" class="primary">Add annotation</button><button id="addImg2">Add
+            image</button></div>
+        <p class="hint">Select annotations, shapes and images from the list. Click annotations and shapes in the figure,
+          and drag an image to move it or its handles to resize it (Shift flips the aspect lock). Ctrl/Cmd-click adds or
+          removes one, Shift-click selects a range, and edits apply to everything selected. Draw shapes with the
           toolbar.</p>
         <div id="elems"></div>
       </div>
@@ -1156,20 +1261,35 @@
       if (f && f.figure) f = f.figure;
       if (!f || !Array.isArray(f.data)) throw Error('This JSON has no "data" array. Export it with fig.write_json().');
       f.layout = f.layout || {};
-      f.layout.newshape = f.layout.newshape || { line: { color: '#d1495b', width: 2 } };
+      /* Named items defined in layout.template (annotations, shapes, images) are drawn by Plotly but are not in fig.layout.
+         Add an empty stub that points at each one, so it can be selected and edited; the template value is used until the user changes it. */
+      S.stubs = {}; S.n0 = {}; S.extra = {}; S.inj = {};
+      const T = f.layout.template && typeof f.layout.template === 'object' ? f.layout.template.layout : null;
+      /* Named template items are created by plotly.js; unnamed ones are ignored by it. Add a stub for each named item and a copy of each
+         unnamed item to the figure so that all of them are drawn and editable. Template values are used until the user changes them. */
+      ['annotations', 'shapes', 'images'].forEach(c => {
+        const have = f.layout[c] || [], add = (T?.[c] || []).filter(t => t && t.name && !have.some(x => x.templateitemname === t.name)),
+          un = (T?.[c] || []).filter(t => t && !t.name && t.visible !== false);
+        if (!add.length && !un.length) return;
+        S.n0[c] = have.length; if (add.length) S.stubs[c] = add.map(t => t.name); if (un.length) S.extra[c] = un.map(t => clone(t));
+        f.layout[c] = [...have, ...add.map(t => ({ templateitemname: t.name })), ...un.map(t => clone(t))];
+      });
+      /* plotly.js ignores width and height set only in the template, so apply them here */
+      ['width', 'height'].forEach(k => { if (f.layout[k] == null && typeof T?.[k] === 'number') { f.layout[k] = T[k]; S.inj[k] = T[k] } });
+      if (!f.layout.newshape && !T?.newshape) f.layout.newshape = { line: { color: '#d1495b', width: 2 } };
       S.name = name || 'figure'; S.entries = []; S.idx = 0; S.seenT = 0; S.open.clear(); S.shut.clear();
       return Plotly.newPlot(gd, clone(f.data), clone(f.layout), cfg).then(() => {
         S.ready = true; S.link = norm(gd._fullLayout.paper_bgcolor) === norm(gd._fullLayout.plot_bgcolor); linkC.checked = S.link; $('#empty').style.display = 'none'; S.snaps = [snap()];
-        gd.on('plotly_relayout', onRelayout); gd.on('plotly_restyle', onRestyle); gd.on('plotly_relayout', toolSync);
-        S.selT = gd.data.length ? [0] : []; S.selA = []; S.anchT = 0; S.anchA = null; toolSync(); ui();
+        gd.on('plotly_relayout', onRelayout); gd.on('plotly_restyle', onRestyle); gd.on('plotly_relayout', toolSync); gd.on('plotly_afterplot', ov);
+        S.selT = gd.data.length ? [0] : []; S.selA = []; S.anchT = 0; S.anchA = null; toolSync(); ov(); ui();
       });
     }
     const tryLoad = (text, name) => { try { load(JSON.parse(text), name).catch(e => toast(e.message)) } catch (e) { toast(e.message) } };
     $('#file').onchange = e => { const f = e.target.files[0]; if (f) f.text().then(t => tryLoad(t, f.name.replace(/\.json$/i, ''))); e.target.value = '' };
     addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('drag') });
     addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('drag') });
-    addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('drag'); const f = e.dataTransfer.files[0]; if (f) f.text().then(t => tryLoad(t, f.name.replace(/\.json$/i, ''))) });
-    addEventListener('paste', e => { if (/input|textarea/i.test(e.target.tagName)) return; const t = e.clipboardData.getData('text'); if (t.trim().startsWith('{')) tryLoad(t, 'figure') });
+    addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('drag'); const f = e.dataTransfer.files[0]; if (f && /^image\//.test(f.type)) return imgFile(f, addImage); if (f) f.text().then(t => tryLoad(t, f.name.replace(/\.json$/i, ''))) });
+    addEventListener('paste', e => { if (/input|textarea/i.test(e.target.tagName)) return; const im = [...e.clipboardData.files].find(f => /^image\//.test(f.type)); if (im) return imgFile(im, addImage); const t = e.clipboardData.getData('text'); if (t.trim().startsWith('{')) tryLoad(t, 'figure') });
     $('#sample').onclick = () => {
       const x = [...Array(24).keys()];
       load({
@@ -1185,6 +1305,7 @@
     /* ---------- history capture ---------- */
     const skipZoom = k => /(^|\.)(autorange|range(\[\d\])?|camera)$/.test(k);
     function onRelayout(ed) {
+      if (S.q) return;
       const ops = Object.entries(ed).filter(([k]) => k !== 'dragmode' && (($('#zoom').checked) || !skipZoom(k)));
       if (ops.length) commit('relayout', ops);
     }
@@ -1235,10 +1356,10 @@
         let line, plain = true;
         if (e.kind === 'restyle') line = `update_traces({${JSON.stringify(k)}: ${py(v)}}, selector=${t})`;
         else {
-          const m = k.match(/^(annotations)\[(\d+)\]$/);
-          if (m && v && typeof v === 'object') { line = `add_${m[1].slice(0, -1)}(${py(v)})`; plain = false }
+          const m = k.match(/^(annotations|images)\[(\d+)\]$/);
+          if (m && v && typeof v === 'object') { line = `add_${m[1] === 'images' ? 'layout_image' : 'annotation'}(${py(v)})`; plain = false }
           else if (m) { line = `update_layout(${m[1]}=fig.layout.${m[1]}[:${m[2]}] + fig.layout.${m[1]}[${+m[2] + 1}:])`; plain = false }
-          else { line = `update_layout({${JSON.stringify(k)}: ${py(v)}})`; if (/^annotations$/.test(k)) plain = false }
+          else { line = `update_layout({${JSON.stringify(k)}: ${py(v)}})`; if (/^(annotations|images)$/.test(k)) plain = false }
         }
         if ($('#cons').checked && plain) {
           const key = e.kind + k + (t ?? ''); const p = seen.get(key);
@@ -1250,9 +1371,17 @@
       /* shapes: whatever differs between the original and the current figure is added with add_shape */
       const orig = S.snaps[0]?.layout?.shapes || [], fin = S.snaps[S.idx]?.layout?.shapes || [], used = new Set(), add = [];
       fin.forEach(s => { const j = orig.findIndex((o, x) => !used.has(x) && J(o) === J(s)); if (j >= 0) used.add(j); else add.push(s) });
-      const gone = orig.map((_, i) => i).filter(i => !used.has(i));
+      const lim = S.n0?.shapes ?? Infinity, gone = orig.map((_, i) => i).filter(i => !used.has(i) && i < lim);
       out.pre = gone.length ? [`# Remove original shapes that were deleted or edited (edited ones are re-added below)\nfig.layout.shapes = [s for i, s in enumerate(fig.layout.shapes) if i not in ${py(gone)}]`] : [];
       add.forEach(s => out.push(`add_shape(${shapeArgs(s)})`));
+      /* template items are not in the original figure: add references to them first when later edits address them by index */
+      const stubLines = [];
+      [['annotations', 'annotation'], ['images', 'layout_image']].forEach(([c, fn]) => {
+        const names = S.stubs?.[c] || [], extra = S.extra?.[c] || []; if (!names.length && !extra.length) return;
+        const re = new RegExp('^' + c + '(?:\\[(\\d+)\\])?'), used = S.entries.slice(0, S.idx).some(e => e.kind === 'relayout' && e.ops.some(([k]) => { const m = k.match(re); return m && (m[1] === undefined || +m[1] >= S.n0[c]) }));
+        if (used) { names.forEach(n => stubLines.push(`add_${fn}(templateitemname=${JSON.stringify(n)})`)); extra.forEach(x => stubLines.push(`add_${fn}(${py(x)})`)) }
+      });
+      out.unshift(...stubLines);
       return out;
     }
     const script = () => {
@@ -1294,13 +1423,23 @@
     };
 
     /* ---------- export ---------- */
-    const figOut = () => ({ data: clone(gd.data), layout: clone(gd.layout) });
+    /* keep = true gives the figure exactly as drawn (used for the HTML export); otherwise unchanged template values are left to the template */
+    const figOut = keep => {
+      const o = { data: clone(gd.data), layout: clone(gd.layout) }; if (keep) return o;
+      Object.keys(S.inj || {}).forEach(k => { if (J(o.layout[k]) === J(S.inj[k])) delete o.layout[k] });
+      Object.entries(S.extra || {}).forEach(([c, ex]) => {
+        if (!o.layout[c]) return;
+        ex.forEach(x => { const j = o.layout[c].findIndex((y, i) => i >= (S.n0[c] || 0) && J(y) === J(x)); if (j >= 0) o.layout[c].splice(j, 1) });
+        if (!o.layout[c].length) delete o.layout[c];
+      });
+      return o;
+    };
     document.querySelectorAll('[data-x]').forEach(b => b.onclick = () => {
       if (!S.ready) return toast('Load a figure first');
       const x = b.dataset.x, n = S.name + '_edited';
       if (x === 'png' || x === 'svg') Plotly.downloadImage(gd, { format: x, scale: +$('#scale').value, filename: n });
       else if (x === 'json') save(new Blob([J(figOut(), 2)], { type: 'application/json' }), n + '.json');
-      else { const f = figOut(); save(new Blob([`<!doctype html><meta charset="utf-8"><title>${n}</title><script src="${CDN}"><\/script><div id="g" style="width:100%;height:100vh"></div><script>Plotly.newPlot("g",${J(f.data)},${J(f.layout)},{responsive:true})<\/script>`], { type: 'text/html' }), n + '.html') }
+      else { const f = figOut(true); save(new Blob([`<!doctype html><meta charset="utf-8"><title>${n}</title><script src="${CDN}"><\/script><div id="g" style="width:100%;height:100vh"></div><script>Plotly.newPlot("g",${J(f.data)},${J(f.layout)},{responsive:true})<\/script>`], { type: 'text/html' }), n + '.html') }
     });
 
     /* ---------- side panels ---------- */
@@ -1337,9 +1476,17 @@
     const busy = b => { const a = document.activeElement; return a && b.contains(a) && a.tagName !== 'BUTTON' };
     const axsel = h('select', { onchange() { SYNC.forEach(i => i._sync()) } });
     const AX = () => axsel.value || 'xaxis';
-    const lay = (lab, type, path, opts, src) => fld(lab, type, opts, () => dig(src ? gd.layout : gd._fullLayout, path), v => Plotly.relayout(gd, { [path]: v }));
-    const axf = (lab, type, sub, opts) => fld(lab, type, opts, () => dig(gd._fullLayout, AX() + '.' + sub), v => Plotly.relayout(gd, { [AX() + '.' + sub]: v }));
-    const bg = (lab, key) => fld(lab, 'color', 0, () => gd._fullLayout[key], v => Plotly.relayout(gd, S.link ? { plot_bgcolor: v, paper_bgcolor: v } : { [key]: v }));
+    /* a value is read from fig.layout first, then fig.layout.template.layout, then Plotly's resolved layout */
+    const tmpl = () => (gd.layout.template && gd.layout.template.layout) || {};
+    const eff = p => dig(gd.layout, p) ?? dig(tmpl(), p);
+    const lay = (lab, type, path, opts, src) => fld(lab, type, opts, () => src ? eff(path) : eff(path) ?? dig(gd._fullLayout, path), v => {
+      /* clearing width/height goes back to the template value, not to the container size */
+      const t = dig(tmpl(), path); Plotly.relayout(gd, { [path]: (v === null || v === '') && /^(width|height)$/.test(path) && t != null ? t : v })
+    });
+    /* axis values: layout, then the template's same axis, then the template's base axis (xaxis/yaxis apply to xaxis2, yaxis3...) */
+    const effAx = sub => eff(AX() + '.' + sub) ?? dig(tmpl(), AX().replace(/\d+$/, '') + '.' + sub) ?? dig(gd._fullLayout, AX() + '.' + sub);
+    const axf = (lab, type, sub, opts) => fld(lab, type, opts, () => effAx(sub), v => Plotly.relayout(gd, { [AX() + '.' + sub]: v }));
+    const bg = (lab, key) => fld(lab, 'color', 0, () => eff(key) ?? gd._fullLayout[key], v => Plotly.relayout(gd, S.link ? { plot_bgcolor: v, paper_bgcolor: v } : { [key]: v }));
     const linkC = h('input', { type: 'checkbox', onchange() { S.link = this.checked; if (S.link) Plotly.relayout(gd, { plot_bgcolor: gd._fullLayout.paper_bgcolor }) } });
     const order = () => gd.data.map((_, i) => i).sort((a, b) => (gd.data[a].legendrank ?? 1000) - (gd.data[b].legendrank ?? 1000) || a - b);
     const orderNames = () => [...new Set(order().filter(i => gd.data[i].showlegend !== false).map(i => gd.data[i].name ?? `trace ${i}`))];
@@ -1354,7 +1501,8 @@
       sec('Text'), L('Title', 'text', 'title.text'), row(L('X axis title', 'text', 'xaxis.title.text'), L('Y axis title', 'text', 'yaxis.title.text')),
       sec('Appearance'), row(bg('Page background', 'paper_bgcolor'), bg('Plot background', 'plot_bgcolor')),
       h('label', { className: 'chk' }, linkC, 'Keep page and plot backgrounds the same'),
-      row(L('Font size', 'number', 'font.size'), wL, hL),
+      row(L('Font family', 'text', 'font.family'), L('Font size', 'number', 'font.size'), L('Font color', 'color', 'font.color', '#444444')),
+      row(L('Title size', 'number', 'title.font.size'), wL, hL),
       sec('Margins (px)'), row(L('Left', 'number', 'margin.l'), L('Right', 'number', 'margin.r'), L('Top', 'number', 'margin.t'), L('Bottom', 'number', 'margin.b')),
       grp('More layout options', false, L('Padding', 'number', 'margin.pad'), L('Auto-expand margins', 'bool', 'margin.autoexpand'),
         L('Hover mode', 'select', 'hovermode', ['', 'closest', 'x', 'y', 'x unified', 'y unified']), L('Bar mode', 'select', 'barmode', ['group', 'stack', 'overlay', 'relative'])),
@@ -1433,7 +1581,9 @@
     }
     const sbar = (txt, ...b) => h('div', { className: 'sbar' }, h('span', { className: 'mut', textContent: txt }), ...b);
     const sbtn = (t, fn, o = {}) => h('button', Object.assign({ type: 'button', textContent: t, onclick: fn }, o));
-    const annKeys = () => [...(gd.layout.annotations || []).map((_, i) => 'a' + i), ...(gd.layout.shapes || []).map((_, i) => 's' + i)];
+    const COLL = { a: 'annotations', s: 'shapes', i: 'images' };
+    const shown = (c, i) => gd._fullLayout[c]?.[i]?.visible !== false;
+    const annKeys = () => ['a', 's', 'i'].flatMap(p => (gd.layout[COLL[p]] || []).map((_, i) => p + i).filter(k => shown(COLL[p], +k.slice(1))));
     function pickT(i, e) { [S.selT, S.anchT] = choose(S.selT, S.anchT, gd.data.map((_, k) => k), i, e); traces(true) }
     function pickA(k, e) { [S.selA, S.anchA] = choose(S.selA, S.anchA, annKeys(), k, e); elems(true) }
 
@@ -1495,24 +1645,31 @@
     }
 
     /* ---------- annotations and shapes: one set of controls for the selection ---------- */
-    function dupe(sa, ss) {
+    /* a layout item with its template values filled in (used when copying) */
+    const deepMerge = (a, b) => { for (const k in b) a[k] = b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && a[k] && typeof a[k] === 'object' ? deepMerge(a[k], b[k]) : b[k]; return a };
+    function resolve(c, i) {
+      const u = clone(gd.layout[c][i]), tn = u.templateitemname; if (!tn) return u;
+      const t = (tmpl()[c] || []).find(x => x.name === tn); if (!t) { delete u.templateitemname; return u }
+      const o = deepMerge(clone(t), u); delete o.templateitemname; delete o.name; return o;
+    }
+    function dupe(sa, ss, si) {
       const L = gd._fullLayout, d = 26, u = {}, nk = [];
-      [['annotations', sa, 'a'], ['shapes', ss, 's']].forEach(([coll, idxs, pre]) => {
-        const n0 = (gd.layout[coll] || []).length, isA = coll === 'annotations';
+      [['annotations', sa, 'a'], ['shapes', ss, 's'], ['images', si, 'i']].forEach(([c, idxs, pre]) => {
+        const n0 = (gd.layout[c] || []).length;
         idxs.forEach((i, k) => {
-          const o = clone(gd.layout[coll][i]);
+          const o = resolve(c, i);
           const mv = (key, ref, s, dim) => {
             if (typeof o[key] !== 'number' && typeof o[key] !== 'string') return;
-            if (!isA && /domain/.test(ref)) return;
+            if (c === 'shapes' && /domain/.test(ref)) return;
             try {
               if (ref === 'paper' || /domain/.test(ref)) o[key] = +(+o[key] + s * d / L._size[dim]).toFixed(4);
               else { const ax = L[ref.replace(/^([xy])/, '$1axis')]; o[key] = ax.l2d(ax.p2l(ax.l2p(ax.d2l(o[key])) + d)) }
             } catch (e) { }
           };
-          const xr = o.xref || 'x', yr = o.yref || 'y';
-          if (isA) { mv('x', xr, 1, 'w'); mv('y', yr, -1, 'h') }
+          const xr = o.xref || (c === 'images' ? 'paper' : 'x'), yr = o.yref || (c === 'images' ? 'paper' : 'y');
+          if (c !== 'shapes') { mv('x', xr, 1, 'w'); mv('y', yr, -1, 'h') }
           else if (o.type !== 'path') { mv('x0', xr, 1, 'w'); mv('x1', xr, 1, 'w'); mv('y0', yr, -1, 'h'); mv('y1', yr, -1, 'h') }
-          u[`${coll}[${n0 + k}]`] = o; nk.push(pre + (n0 + k));
+          u[`${c}[${n0 + k}]`] = o; nk.push(pre + (n0 + k));
         });
       });
       S.selA = nk; S.anchA = nk[0]; Plotly.relayout(gd, u); toast(nk.length + (nk.length > 1 ? ' items' : ' item') + ' copied');
@@ -1520,20 +1677,29 @@
     function elems(force) { const box = $('#elems'); if (!force && busy(box)) return; keepScroll(box, () => buildElems(box)) }
     function buildElems(box) {
       box.textContent = '';
-      const A = gd.layout.annotations || [], Sh = gd.layout.shapes || [], FL = gd._fullLayout, keys = annKeys();
-      S.selA = S.selA.filter(k => keys.includes(k));
-      if (!keys.length) return box.append(h('p', { className: 'hint', textContent: 'Nothing here yet. Add an annotation, or draw a shape with the toolbar.' }));
-      const items = [...A.map((a, i) => ({ k: 'a' + i, t: `Annotation ${i + 1}: ${String(a.text ?? '').slice(0, 26)}`, sub: 'text' })),
-      ...Sh.map((s, i) => ({ k: 's' + i, t: `Shape ${i + 1}`, sub: spanName(FL.shapes?.[i] || s) }))];
-      const sa = S.selA.filter(k => k[0] === 'a').map(k => +k.slice(1)), ss = S.selA.filter(k => k[0] === 's').map(k => +k.slice(1));
+      const FL = gd._fullLayout, keys = annKeys(); S.selA = S.selA.filter(k => keys.includes(k));
+      const A = gd.layout.annotations || [], Sh = gd.layout.shapes || [], Im = gd.layout.images || [];
+      if (!keys.length) return box.append(h('p', { className: 'hint', textContent: 'Nothing here yet. Add an annotation or an image, or draw a shape with the toolbar.' }));
+      const tn = (c, i) => gd.layout[c][i].templateitemname || (S.extra?.[c] && i >= (S.n0[c] || 0) + (S.stubs?.[c]?.length || 0) ? 'template' : undefined);
+      const items = keys.map(k => {
+        const pf = k[0], i = +k.slice(1), tp = tn(COLL[pf], i);
+        if (pf === 'a') return { k, t: `Annotation ${i + 1}: ${String(FL.annotations?.[i]?.text ?? '').slice(0, 26)}`, sub: tp ? 'template' : 'text' };
+        if (pf === 's') return { k, t: `Shape ${i + 1}${tp ? ': ' + tp : ''}`, sub: (tp ? 'template ' : '') + spanName(FL.shapes?.[i] || {}) };
+        return { k, t: `Image ${i + 1}${tp ? ': ' + tp : ''}`, sub: tp ? 'template' : 'image' };
+      });
+      const pick3 = pf => S.selA.filter(k => k[0] === pf).map(k => +k.slice(1)), sa = pick3('a'), ss = pick3('s'), si = pick3('i');
       const del = () => {
-        const u = {}; if (sa.length) u.annotations = A.filter((_, j) => !sa.includes(j)); if (ss.length) u.shapes = Sh.filter((_, j) => !ss.includes(j));
+        const u = {};
+        [['annotations', sa], ['shapes', ss], ['images', si]].forEach(([c, ix]) => {
+          /* template items cannot be removed from the array (they would reappear), so they are hidden instead */
+          if (ix.length) u[c] = (gd.layout[c] || []).map((x, j) => !ix.includes(j) ? x : x.templateitemname ? { ...x, visible: false } : null).filter(Boolean);
+        });
         S.selA = []; Plotly.relayout(gd, u);
       };
       box.append(slist(items, S.selA, pickA),
         sbar(`${S.selA.length} of ${keys.length} selected`, sbtn('All', () => { S.selA = keys; elems(true) }), sbtn('None', () => { S.selA = []; elems(true) }),
-          sbtn('Duplicate', () => dupe(sa, ss), { disabled: !S.selA.length, title: 'Copy the selected items' }), sbtn('Delete', del, { disabled: !S.selA.length, className: 'del' })),
-        h('p', { className: 'hint', textContent: 'Click to select. Ctrl/Cmd-click adds or removes one, Shift-click selects a range. You can also click an annotation or shape in the figure.' }));
+          sbtn('Duplicate', () => dupe(sa, ss, si), { disabled: !S.selA.length, title: 'Copy the selected items' }), sbtn('Delete', del, { disabled: !S.selA.length, className: 'del' })),
+        h('p', { className: 'hint', textContent: 'Click to select. Ctrl/Cmd-click adds or removes one, Shift-click selects a range. Annotations and shapes can also be clicked in the figure.' }));
       if (!S.selA.length) return;
       const pk = S.selA.includes(S.anchA) ? S.anchA : S.selA[0], pn = +pk.slice(1);
       if (sa.length) {
@@ -1562,16 +1728,130 @@
         const ps = pk[0] === 's' && ss.includes(pn) ? pn : ss[0], FS = i => FL.shapes?.[i] || {};
         const setS = (k, v) => Plotly.relayout(gd, Object.fromEntries(ss.map(i => [`shapes[${i}].${k}`, v])));
         const f = (lb, ty, sub, opts) => fld(lb, ty, opts, () => dig(FS(ps), sub), v => setS(sub, v), () => ss.some(i => J(dig(FS(i), sub)) !== J(dig(FS(ps), sub))));
-        const elig = ss.filter(i => /^(line|rect)$/.test(Sh[i].type)), eq = elig.includes(ps) ? ps : elig[0];
-        box.append(h('div', { className: 'ctl' }, sec(ss.length > 1 ? `Editing ${ss.length} shapes` : `Editing shape ${ps + 1}: ${Sh[ps].type || 'path'}`),
-          row(...(ss.every(i => Sh[i].type === 'line') ? [] : [f('Fill', 'color', 'fillcolor')]), f('Line color', 'color', 'line.color', '#d1495b'), f('Width', 'number', 'line.width')),
+        const elig = ss.filter(i => /^(line|rect)$/.test(FS(i).type)), eq = elig.includes(ps) ? ps : elig[0];
+        box.append(h('div', { className: 'ctl' }, sec(ss.length > 1 ? `Editing ${ss.length} shapes` : `Editing shape ${ps + 1}: ${FS(ps).type || 'path'}`),
+          row(...(ss.every(i => FS(i).type === 'line') ? [] : [f('Fill', 'color', 'fillcolor')]), f('Line color', 'color', 'line.color', '#d1495b'), f('Width', 'number', 'line.width')),
           row(lab('Dash', seg([['solid', 'Solid'], ['dot', 'Dot'], ['dash', 'Dash']], () => dig(FS(ps), 'line.dash'), v => setS('line.dash', v))), f('Opacity', 'range', 'opacity')),
           ...(elig.length ? [row(lab('Span (vline / hline / vrect / hrect)', seg([['free', 'Free', 'A normal line or rectangle'], ['v', 'Vertical', 'vline / vrect: spans the full plot height'], ['h', 'Horizontal', 'hline / hrect: spans the full plot width']],
             () => spanMode(FS(eq)), v => { const u = Object.assign({}, ...elig.map(i => spanU(i, v))); if (Object.keys(u).length) Plotly.relayout(gd, u) })))] : []),
           det('smore', 'More shape options', row(f('Dash style', 'select', 'line.dash', ['solid', 'dot', 'dash', 'longdash', 'dashdot', 'longdashdot']), f('Layer', 'select', 'layer', ['above', 'below', 'between'])),
-            ...(ss.length === 1 && Sh[ps].type !== 'path' ? [row(f('x0', 'val', 'x0'), f('y0', 'val', 'y0')), row(f('x1', 'val', 'x1'), f('y1', 'val', 'y1'))] : []))));
+            ...(ss.length === 1 && FS(ps).type !== 'path' ? [row(f('x0', 'val', 'x0'), f('y0', 'val', 'y0')), row(f('x1', 'val', 'x1'), f('y1', 'val', 'y1'))] : []))));
+      }
+      if (si.length) {
+        const pi = pk[0] === 'i' && si.includes(pn) ? pn : si[0], FI = i => FL.images?.[i] || {};
+        const setI = (k, v) => Plotly.relayout(gd, Object.fromEntries(si.map(i => [`images[${i}].${k}`, v])));
+        const f = (lb, ty, sub, opts) => fld(lb, ty, opts, () => dig(FI(pi), sub), v => setI(sub, v), () => si.some(i => J(dig(FI(i), sub)) !== J(dig(FI(pi), sub))));
+        const emb = /^data:/.test(FI(pi).source || '');
+        box.append(h('div', { className: 'ctl' }, sec(si.length > 1 ? `Editing ${si.length} images` : `Editing image ${pi + 1}`),
+          ...(si.length === 1 ? [row(emb ? lab('Source', h('input', { type: 'text', value: 'Embedded image', disabled: true })) : f('Source URL', 'text', 'source'),
+            ib('Replace', 'Replace with another image file', () => { S.repl = pi; $('#imgfile').click() }))] : []),
+          row(f('X', 'number', 'x'), f('Y', 'number', 'y'), f('Width', 'number', 'sizex'), f('Height', 'number', 'sizey')),
+          row(f('Opacity', 'range', 'opacity'), f('Layer', 'select', 'layer', ['above', 'below']), f('Sizing', 'select', 'sizing', ['stretch', 'contain', 'fill'])),
+          row(tog('Lock aspect on corner handles', () => S.lock, v => { S.lock = v; elems(true) }, 'Hold Shift while dragging to do the opposite'))));
       }
     }
+
+    /* ---------- images: drag to move, handles to resize (works on template images too) ---------- */
+    S.lock = true; S.repl = null;
+    const qrel = u => { S.q = (S.q || 0) + 1; return S.pend = Plotly.relayout(gd, u).finally(() => S.q--) };
+    const IMX = { left: 0, center: .5, right: 1 }, IMY = { top: 0, middle: .5, bottom: 1 };
+    const axOf = r => /^[xy]\d*$/.test(r) ? gd._fullLayout[r.replace(/^([xy])/, '$1axis')] : null;
+    const imOK = F => F && F.visible !== false && (F.xref === 'paper' || /^x\d*$/.test(F.xref)) && (F.yref === 'paper' || /^y\d*$/.test(F.yref));
+    function imGeom(i) {
+      const FL = gd._fullLayout, F = FL.images?.[i], s = FL._size; if (!imOK(F)) return null;
+      const X = axOf(F.xref), Y = axOf(F.yref);
+      const px = X ? X._offset + X.l2p(X.d2l(F.x)) : s.l + F.x * s.w, py = Y ? Y._offset + Y.l2p(Y.d2l(F.y)) : s.t + (1 - F.y) * s.h;
+      const w = X ? Math.abs(X.l2p(X.d2l(F.x) + F.sizex) - X.l2p(X.d2l(F.x))) : F.sizex * s.w;
+      const ht = Y ? Math.abs(Y.l2p(Y.d2l(F.y) - F.sizey) - Y.l2p(Y.d2l(F.y))) : F.sizey * s.h;
+      return { l: px - (IMX[F.xanchor] ?? 0) * w, t: py - (IMY[F.yanchor] ?? 0) * ht, w, h: ht };
+    }
+    function imPut(i, r) {
+      const FL = gd._fullLayout, F = FL.images[i], s = FL._size, X = axOf(F.xref), Y = axOf(F.yref), p = `images[${i}].`;
+      const ax = r.l + (IMX[F.xanchor] ?? 0) * r.w, ay = r.t + (IMY[F.yanchor] ?? 0) * r.h, sig = v => typeof v === 'number' ? +v.toPrecision(7) : v, u = {};
+      if (X) { u[p + 'x'] = sig(X.l2d(X.p2l(ax - X._offset))); u[p + 'sizex'] = +Math.abs(X.p2l(r.w) - X.p2l(0)).toPrecision(6) }
+      else { u[p + 'x'] = +((ax - s.l) / s.w).toFixed(4); u[p + 'sizex'] = +(r.w / s.w).toFixed(4) }
+      if (Y) { u[p + 'y'] = sig(Y.l2d(Y.p2l(ay - Y._offset))); u[p + 'sizey'] = +Math.abs(Y.p2l(r.h) - Y.p2l(0)).toPrecision(6) }
+      else { u[p + 'y'] = +(1 - (ay - s.t) / s.h).toFixed(4); u[p + 'sizey'] = +(r.h / s.h).toFixed(4) }
+      return u;
+    }
+    const place = (b, r) => { b.style.left = r.l + 'px'; b.style.top = r.t + 'px'; b.style.width = r.w + 'px'; b.style.height = r.h + 'px' };
+    function mkBox() {
+      const b = h('div', { className: 'ib' });
+      ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].forEach(k => b.append(h('i', { className: 'hd h-' + k })));
+      b.onpointerdown = e => {
+        if (e.button) return; e.preventDefault(); e.stopPropagation();
+        const i = +b.dataset.i, key = 'i' + i, r0 = imGeom(i); if (!r0) return;
+        $('.tabs [data-tab=elems]').click();
+        if (e.ctrlKey || e.metaKey || e.shiftKey) return pickA(key, e);
+        if (!S.selA.includes(key)) pickA(key, e);
+        b.setPointerCapture(e.pointerId);
+        S.drag = { i, k: e.target.classList.contains('hd') ? e.target.className.split('h-')[1] : 'mv', x: e.clientX, y: e.clientY, r0, u: null };
+      };
+      b.onpointermove = e => {
+        const d = S.drag; if (!d || d.i !== +b.dataset.i) return;
+        const dx = e.clientX - d.x, dy = e.clientY - d.y, o = d.r0, M = 10; let l = o.l, t = o.t, r = o.l + o.w, bt = o.t + o.h;
+        if (d.k === 'mv') { l += dx; r += dx; t += dy; bt += dy }
+        else {
+          if (d.k.includes('w')) l = Math.min(l + dx, r - M); if (d.k.includes('e')) r = Math.max(r + dx, l + M);
+          if (d.k.includes('n')) t = Math.min(t + dy, bt - M); if (d.k.includes('s')) bt = Math.max(bt + dy, t + M);
+          if (d.k.length === 2 && S.lock !== e.shiftKey) {
+            const k = Math.max((r - l) / o.w, (bt - t) / o.h), nw = o.w * k, nh = o.h * k;
+            if (d.k.includes('w')) l = r - nw; else r = l + nw; if (d.k.includes('n')) t = bt - nh; else bt = t + nh;
+          }
+        }
+        const rect = { l, t, w: r - l, h: bt - t }; place(b, rect); d.u = imPut(d.i, rect);
+        cancelAnimationFrame(S.raf); S.raf = requestAnimationFrame(() => qrel(d.u));
+      };
+      b.onpointerup = b.onpointercancel = () => {
+        const d = S.drag; if (!d) return; S.drag = null; cancelAnimationFrame(S.raf);
+        if (d.u) (S.pend || Promise.resolve()).then(() => Plotly.relayout(gd, d.u)); else ov();
+      };
+      b.onwheel = e => {
+        const t = document.elementsFromPoint(e.clientX, e.clientY).find(n => n.classList.contains('nsewdrag')); if (!t) return;
+        e.preventDefault(); t.dispatchEvent(new WheelEvent('wheel', { deltaY: e.deltaY, deltaMode: e.deltaMode, clientX: e.clientX, clientY: e.clientY, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, bubbles: true, cancelable: true }));
+      };
+      return b;
+    }
+    function ov() {
+      const L = $('#imgLayer'); if (!L) return;
+      const dm = S.ready ? gd._fullLayout.dragmode : '', n = S.ready ? (gd._fullLayout.images || []).length : 0;
+      while (L.children.length > n) L.lastChild.remove();
+      while (L.children.length < n) L.append(mkBox());
+      [...L.children].forEach((b, i) => {
+        b.dataset.i = i; b.classList.toggle('sel', (S.selA || []).includes('i' + i)); b.style.pointerEvents = /^(draw|erase)/.test(dm) ? 'none' : 'auto';
+        if (S.drag?.i === i) return; const r = imGeom(i); b.style.display = r ? '' : 'none'; if (r) place(b, r);
+      });
+    }
+    function imgFile(f, then) {
+      const fr = new FileReader();
+      fr.onload = () => {
+        const im = new Image();
+        im.onload = () => {
+          let src = fr.result; const m = Math.max(im.naturalWidth, im.naturalHeight);
+          if (m > 1600 && !/svg/.test(f.type)) { const k = 1600 / m, c = h('canvas', { width: Math.round(im.naturalWidth * k), height: Math.round(im.naturalHeight * k) }); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); src = c.toDataURL(f.type === 'image/jpeg' ? 'image/jpeg' : 'image/png', .92) }
+          then(src, im.naturalWidth / im.naturalHeight);
+        };
+        im.onerror = () => toast('Could not read that image'); im.src = fr.result;
+      };
+      fr.readAsDataURL(f);
+    }
+    function addImage(src, asp) {
+      if (!S.ready) return toast('Load a figure first');
+      const s = gd._fullLayout._size; let w = .28, ht = w * s.w / asp / s.h; if (ht > .5) { ht = .5; w = ht * s.h * asp / s.w }
+      const n = (gd.layout.images || []).length; S.selA = ['i' + n]; S.anchA = 'i' + n;
+      Plotly.relayout(gd, { ['images[' + n + ']']: { source: src, xref: 'paper', yref: 'paper', x: +(.5 - w / 2).toFixed(4), y: +(.5 + ht / 2).toFixed(4), sizex: +w.toFixed(4), sizey: +ht.toFixed(4), xanchor: 'left', yanchor: 'top', sizing: 'stretch', layer: 'above' } });
+      $('.tabs [data-tab=elems]').click();
+    }
+    $('#addImg2').onclick = () => $('#addImg').click();
+    $('#imgfile').onchange = e => {
+      const f = e.target.files[0], r = S.repl; S.repl = null; e.target.value = ''; if (!f) return;
+      if (!S.ready) return toast('Load a figure first');
+      imgFile(f, (src, a) => r != null ? Plotly.relayout(gd, { [`images[${r}].source`]: src }) : addImage(src, a));
+    };
+    $('#imgUrlGo').onclick = () => {
+      const u = $('#imgUrl').value.trim(); if (!u) return; const im = new Image();
+      im.onload = () => { addImage(u, im.naturalWidth / im.naturalHeight); $('#imgUrl').value = '' }; im.onerror = () => toast('Could not load that image URL'); im.src = u;
+    };
     const short = o => (o[2] !== undefined ? `trace ${o[2]}: ` : '') + o[0] + ' = ' + (J(o[1]) ?? '').slice(0, 50);
     function hist() {
       const b = $('#hist'); b.textContent = '';
